@@ -224,8 +224,9 @@
       html += '<div class="actions">' +
         (isWritten ? '<button type="button" class="btn" data-act="reveal">Show model answer</button>'
           : '<button type="button" class="btn" data-act="check" disabled>Check answer</button>') +
+        '<button type="button" class="btn quiet" data-act="idk">I don\'t know</button>' +
         '<button type="button" class="btn quiet" data-act="skip">Skip</button>' +
-        '<span class="spacer"></span><span class="kbd-hint">' + (isWritten ? '' : 'Keys: A–' + LETTERS[options.length - 1] + ' to choose, Enter to check') + '</span></div>';
+        '<span class="spacer"></span><span class="kbd-hint">' + (isWritten ? '' : 'Keys: A–' + LETTERS[options.length - 1] + ' to choose, Enter to check, ? for I don\'t know') + '</span></div>';
     }
     html += '<div data-slot="after"></div></article>';
     host.innerHTML = html;
@@ -307,6 +308,31 @@
     const skipBtn = card.querySelector('[data-act="skip"]');
     if (skipBtn) skipBtn.addEventListener('click', () => opts.onNext && opts.onNext());
 
+    // "I don't know": counts as missed, then shows the answer and explanation
+    const idkBtn = card.querySelector('[data-act="idk"]');
+    function dontKnow() {
+      if (graded) return;
+      graded = true;
+      record(q, 'wrong');
+      const verdict = '<div class="feedback wrong" role="status"><div class="verdict">Marked as missed. ' +
+        (isWritten ? 'Here\'s the answer to study.' : 'The answer is ' + LETTERS[correctPos] + '.') +
+        ' It will show up in Review misses.</div>' + (!isWritten && q.e ? '<p>' + fmt(q.e) + '</p>' : '') + '</div>';
+      if (isWritten) {
+        if (revealBtn) revealBtn.hidden = true;
+        after.innerHTML = verdict + modelHTML(q, false) + nextRow();
+      } else {
+        card.querySelectorAll('.opt').forEach((el) => {
+          el.setAttribute('aria-disabled', 'true');
+          el.querySelector('input').disabled = true;
+          if (Number(el.dataset.i) === correctPos) el.classList.add('is-correct');
+        });
+        after.innerHTML = verdict + nextRow();
+      }
+      wireNext();
+      if (opts.onGraded) opts.onGraded('wrong');
+    }
+    if (idkBtn) idkBtn.addEventListener('click', dontKnow);
+
     function nextRow() {
       return '<div class="actions"><button type="button" class="btn" data-act="next">' + esc(opts.nextLabel || 'Next question') + '</button></div>';
     }
@@ -315,6 +341,8 @@
       if (!nb) return;
       if (skipBtn) skipBtn.hidden = true;
       if (checkBtn) checkBtn.hidden = true;
+      if (idkBtn) idkBtn.hidden = true;
+      if (revealBtn) revealBtn.hidden = true;
       nb.addEventListener('click', () => opts.onNext && opts.onNext());
       nb.focus({ preventScroll: true });
     }
@@ -338,6 +366,11 @@
           e.preventDefault();
           return;
         }
+      }
+      if (e.key === '?' && mode === 'practice' && !graded) {
+        e.preventDefault();
+        dontKnow();
+        return;
       }
       if (e.key === 'Enter' && mode === 'practice') {
         if (graded) {
@@ -363,7 +396,7 @@
 
   function modelHTML(q, withGrade) {
     let h = '<section class="model" aria-label="Model answer">';
-    h += '<h4>Check your answer against the key points</h4><ul class="keypoints">';
+    h += '<h4>' + (withGrade ? 'Check your answer against the key points' : 'Key points') + '</h4><ul class="keypoints">';
     q.k.forEach((k, i) => {
       h += '<li><label><input type="checkbox" data-kp="' + i + '"><span>' + fmt(k) + '</span></label></li>';
     });
@@ -745,7 +778,7 @@
   }
 
   function isAnswered(item) {
-    return item.answer && (item.answer.choice != null || (item.answer.text && item.answer.text.trim()));
+    return item.answer && (item.answer.idk || item.answer.choice != null || (item.answer.text && item.answer.text.trim()));
   }
 
   function pageExamRun() {
@@ -759,6 +792,8 @@
       '" aria-label="Question ' + (i + 1) + (isAnswered(it) ? ', answered' : '') + '"' + (i === exam.pos ? ' aria-current="step"' : '') + '>' + (i + 1) + '</button>'
     ).join('') + '</nav>';
     h += '<div id="qhost"></div>';
+    h += '<div class="actions"><button type="button" class="btn quiet" id="idk" aria-pressed="' + !!item.answer.idk + '">' +
+      (item.answer.idk ? 'Marked: I don\'t know (undo)' : 'I don\'t know') + '</button></div>';
     h += '<div class="actions"><button type="button" class="btn quiet" id="prev"' + (exam.pos === 0 ? ' disabled' : '') + '>Previous</button>' +
       '<button type="button" class="btn quiet" id="next"' + (exam.pos === exam.items.length - 1 ? ' disabled' : '') + '>Next</button>' +
       '<span class="spacer"></span><button type="button" class="btn quiet small" id="quit">Discard exam</button>' +
@@ -771,7 +806,9 @@
       order: item.order,
       saved: item.answer,
       onChange: (ans) => {
-        item.answer = ans;
+        item.answer = ans; // choosing an answer clears any "I don't know" mark
+        const ib = document.getElementById('idk');
+        if (ib) { ib.textContent = 'I don\'t know'; ib.setAttribute('aria-pressed', 'false'); }
         saveExam();
         const btn = $main.querySelector('.pal[data-go="' + exam.pos + '"]');
         if (btn) btn.classList.toggle('answered', !!isAnswered(item));
@@ -779,6 +816,16 @@
       },
     });
 
+    document.getElementById('idk').addEventListener('click', () => {
+      if (item.answer.idk) item.answer = {};
+      else item.answer = { idk: true };
+      saveExam();
+      // move on after marking, like skipping a bubble on the real sheet
+      if (item.answer.idk && exam.pos < exam.items.length - 1) exam.pos++;
+      saveExam();
+      render();
+      window.scrollTo({ top: 0 });
+    });
     const go = (i) => { exam.pos = i; saveExam(); render(); window.scrollTo({ top: 0 }); };
     $main.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(Number(b.dataset.go))));
     document.getElementById('prev').addEventListener('click', () => go(exam.pos - 1));
@@ -806,7 +853,7 @@
     exam.items.forEach((it) => {
       const q = byId[it.id];
       if (WRITTEN.has(q.t)) {
-        if (!isAnswered(it)) { it.result = 'wrong'; record(q, 'wrong'); }
+        if (!isAnswered(it) || it.answer.idk) { it.result = 'wrong'; record(q, 'wrong'); }
         return; // graded by the student on the results page
       }
       const correctPos = q.t === 'tf' ? (q.a ? 0 : 1) : it.order.indexOf(q.a);
@@ -869,10 +916,11 @@
           '<span class="bubble" style="' + (k === it.answer.choice ? 'background:var(--pencil);color:var(--surface);border-color:var(--pencil)' : '') + '">' + LETTERS[k] + '</span>' +
           '<span class="otext">' + fmt(text) + (k === it.answer.choice ? ' <span class="kbd-hint">(your answer)</span>' : '') + '</span></div>'
         ).join('') + '</div>';
-        if (it.answer.choice == null) h += '<p class="kbd-hint">You left this blank.</p>';
+        if (it.answer.idk) h += '<p class="kbd-hint">You marked this "I don\'t know".</p>';
+        else if (it.answer.choice == null) h += '<p class="kbd-hint">You left this blank.</p>';
         if (q.e) h += '<div class="feedback' + (it.result === 'correct' ? '' : ' wrong') + '"><p>' + fmt(q.e) + '</p></div>';
       } else {
-        h += '<h4>Your answer</h4><div class="your-answer' + (q.t === 'code' ? ' mono' : '') + '">' + (isAnswered(it) ? esc(it.answer.text) : '<i>Blank</i>') + '</div>';
+        h += '<h4>Your answer</h4><div class="your-answer' + (q.t === 'code' ? ' mono' : '') + '">' + (it.answer.idk ? '<i>I don\'t know</i>' : isAnswered(it) ? esc(it.answer.text) : '<i>Blank</i>') + '</div>';
         h += '<div data-model="' + i + '">' + modelHTML(q, !it.result) + '</div>';
       }
       h += '</div>';

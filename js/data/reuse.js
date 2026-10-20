@@ -488,7 +488,13 @@ BANK.topic({
     // add a case here for every new shape...
   }
 }`, o: ['It uses Math.PI', 'Adding a new shape requires modifying area()\'s source code', 'It returns a number', 'It uses a parameter'], a: 1, e: 'Every new shape forces you to edit area(). Fix: give each shape class its own area() method behind a Shape interface.' },
-    { t: 'code', q: 'Refactor the `area` function above (switch on `shape.kind`) so that it follows OCP: adding a Triangle should not require modifying existing code.', k: ['Shape interface or abstract class with area(): number', 'Circle and Square classes each implement area()', 'Client code calls shape.area() polymorphically, no switch', 'New shapes are added as new classes only'], mc: `interface Shape {
+    { t: 'code', q: 'Refactor this `area` function so that it follows OCP: adding a Triangle should not require modifying existing code.', c: `function area(shape: Shape): number {
+  switch (shape.kind) {
+    case "circle": return Math.PI * shape.r ** 2;
+    case "square": return shape.side ** 2;
+    // add a case here for every new shape...
+  }
+}`, k: ['Shape interface or abstract class with area(): number', 'Circle and Square classes each implement area()', 'Client code calls shape.area() polymorphically, no switch', 'New shapes are added as new classes only'], mc: `interface Shape {
   area(): number;
 }
 

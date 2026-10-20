@@ -260,7 +260,11 @@ BANK.topic({
   saveToDatabase(): void { /* SQL */ }
   generatePerformanceReportHtml(): string { return ""; }
 }`, o: ['It violates SRP: payroll rules, persistence and report formatting change for different reasons', 'It is fine; all methods are about an employee', 'It violates OCP only', 'It violates error handling only'], a: 0, e: 'Three reasons to change (accounting, DBA, reporting team). Split into PayCalculator, EmployeeRepository and EmployeeReportFormatter.' },
-    { t: 'code', q: 'Refactor the `Employee` class above so each class has a single responsibility.', k: ['Employee keeps only employee data/core concept', 'Separate classes for pay calculation, persistence (repository/DAO), and report formatting', 'Each new class has a single reason to change'], mc: `class Employee {
+    { t: 'code', q: 'Refactor this `Employee` class so each class has a single responsibility.', c: `class Employee {
+  calculatePay(): number { /* payroll rules */ return 0; }
+  saveToDatabase(): void { /* SQL */ }
+  generatePerformanceReportHtml(): string { return ""; }
+}`, k: ['Employee keeps only employee data/core concept', 'Separate classes for pay calculation, persistence (repository/DAO), and report formatting', 'Each new class has a single reason to change'], mc: `class Employee {
   constructor(public id: string, public name: string, public hourlyRate: number) {}
 }
 

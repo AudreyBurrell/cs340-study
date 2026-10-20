@@ -313,7 +313,7 @@ Access-Control-Allow-Origin: *
     { t: 'tf', q: 'A cookie without Expires or Max-Age is a session cookie that is deleted when the browser session ends.', a: true, e: 'Permanent cookies set Expires or Max-Age.' },
     { t: 'mc', q: 'Which statement about the Fetch API vs. Axios is correct (per the slides)?', o: ['Fetch is native in most browsers (no install); Axios must be installed and imported but is more feature-rich with a simpler API', 'Axios is built into browsers; fetch must be installed', 'Both require installation', 'Fetch automatically parses JSON into response.data'], a: 0, e: 'With fetch you call response.json(); with axios you read response.data.' },
     { t: 'tf', q: 'fetch() rejects its promise when the server returns HTTP 500.', a: false, e: 'fetch only rejects on network errors. Check response.ok or response.status.' },
-    { t: 'code', q: 'Write an async TypeScript function `registerUser(userData: Record<string, string>)` using **fetch** that POSTs JSON to `/api/register`, handles a 403 specially (log "Forbidden"), throws for other non-OK statuses, and logs the parsed user details. Catch and log errors.', k: ['await fetch(\'/api/register\', { method: \'POST\', headers: {\'Content-Type\': \'application/json\'}, body: JSON.stringify(userData) })', 'if (!response.ok) { if (response.status === 403) { ...; return; } throw new Error(`Status: ...`) }', 'const data = await response.json(); console.log(...)', 'try/catch that logs the error'], mc: `const registerUser = async (userData: Record<string, string>) => {
+    { t: 'code', q: 'Write an async TypeScript function `registerUser(userData: Record<string, string>)` using fetch that POSTs JSON to `/api/register`, handles a 403 specially (log "Forbidden"), throws for other non-OK statuses, and logs the parsed user details. Catch and log errors.', k: ['await fetch(\'/api/register\', { method: \'POST\', headers: {\'Content-Type\': \'application/json\'}, body: JSON.stringify(userData) })', 'if (!response.ok) { if (response.status === 403) { ...; return; } throw new Error(`Status: ...`) }', 'const data = await response.json(); console.log(...)', 'try/catch that logs the error'], mc: `const registerUser = async (userData: Record<string, string>) => {
   try {
     const response = await fetch("/api/register", {
       method: "POST",
@@ -335,7 +335,7 @@ Access-Control-Allow-Origin: *
     console.error("Error during registration:", error);
   }
 };` },
-    { t: 'code', q: 'Rewrite the same `registerUser` using **Axios** with async/await, including 403 handling via `axios.isAxiosError`.', k: ['import axios from "axios"', 'await axios.post(\'/api/register\', userData, { headers: {...} })', 'console.log(response.data)', 'catch: if (axios.isAxiosError(error) && error.response?.status === 403) {...}', 'Otherwise log error.response?.data || error.message'], mc: `import axios from "axios";
+    { t: 'code', q: 'Write an async TypeScript function `registerUser(userData: Record<string, string>)` using Axios that POSTs to `/api/register`, logs the user details from the response, logs "Forbidden" on a 403 (detected with `axios.isAxiosError`), and logs any other error.', k: ['import axios from "axios"', 'await axios.post(\'/api/register\', userData, { headers: {...} })', 'console.log(response.data)', 'catch: if (axios.isAxiosError(error) && error.response?.status === 403) {...}', 'Otherwise log error.response?.data || error.message'], mc: `import axios from "axios";
 
 const registerUser = async (userData: Record<string, string>) => {
   try {
